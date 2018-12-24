@@ -63,7 +63,7 @@ func (c *Ethereum) GetERC20Balance(contract, address string) (string, error) {
 				return
 			}
 
-			errChan <- fmt.Errorf("[GetERC20Name response error] msg: %v code: %v", err["message"], err["code"])
+			errChan <- fmt.Errorf("[GetERC20Balance response error] msg: %v code: %v", err["message"], err["code"])
 			return
 		}
 
@@ -240,7 +240,7 @@ func (c *Ethereum) GetERC20TotalSupply(contract string) (string, error) {
 			if code, ok := err["code"].(int); ok && code == -32015 {
 				return
 			}
-			errChan <- fmt.Errorf("[GetERC20Name response error] msg: %v code: %v", err["message"], err["code"])
+			errChan <- fmt.Errorf("[GetERC20TotalSupply response error] msg: %v code: %v", err["message"], err["code"])
 			return
 		}
 		resChan <- string(resp.Result)
