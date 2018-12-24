@@ -2,7 +2,10 @@ package ethrpc
 
 import (
 	"encoding/hex"
-	"strings"
+	"strconv"
+
+	"github.com/islishude/go-eth-rpc/methods"
+	"github.com/islishude/go-jsonrpc2"
 )
 
 // ERC20Sigs
@@ -16,11 +19,12 @@ const (
 	ERC20SYMBOLSig       = "0xf76f8d78"
 	ERC20TransferSig     = "0xa9059cbb"
 	ERC20TransferFromSig = "0x23b872dd"
+	ERC20TotalSupply     = "0x18160ddd"
 )
 
 // Util
-var (
-	zeroPadding = strings.Repeat("0", 24)
+const (
+	zeroPadding = "000000000000000000000000"
 )
 
 func rmHexPrefix(input string) string {
@@ -34,7 +38,7 @@ func paddingAddress(address string) string {
 	return zeroPadding + rmHexPrefix(address)
 }
 
-// GetERC20Balance is 获取 ERC20 代币余额（未处理单位）
+// GetERC20Balance get ERC20 Token balance
 func (c *Ethereum) GetERC20Balance(contract, address string) (string, error) {
 	resChan, errChan := make(chan string, 1), make(chan error, 1)
 	go func() {
@@ -46,12 +50,10 @@ func (c *Ethereum) GetERC20Balance(contract, address string) (string, error) {
 			To:   contract,
 		}
 
-		result, err := c.CallFunc(&reqData)
-		if err != nil {
-			// TODO add canIgnoreError
-		}
-
-		resChan <- result
+		var resp StrResp
+		c.CallOne(jr2.NewReqData(nil, methods.Call, &reqData), &resp)
+		// TODO(islishude): check error and parse result to *big.Int
+		resChan <- string(resp.Result)
 	}()
 
 	return <-resChan, <-errChan
@@ -65,22 +67,128 @@ func (c *Ethereum) GetERC20Name(contract string) (string, error) {
 		defer close(errChan)
 
 		reqData := CallFuncParam{
-			Data: ERC20BalanceOfSig,
+			Data: ERC20NameSig,
 			To:   contract,
 		}
 
-		result, err := c.CallFunc(&reqData)
+		var resp StrResp
+		err := c.CallOne(jr2.NewReqData(nil, methods.Call, &reqData), &resp)
+		result := rmHexPrefix(resp.Result)
+		// offset(64) + length(64) + data(>=64) >= 192
+		if len(result) < 192 {
+			return
+		}
 		if err != nil {
-			// TODO add canIgnoreError
+			errChan <- err
+			return
 		}
 
-		// TODO decode string in storage
-		// https://solidity-cn.readthedocs.io/zh/develop/miscellaneous.html#storage
-		// data, err :=
-		hex.DecodeString(rmHexPrefix(result))
+		nameLen, err := strconv.ParseInt(result[64:128], 16, 16)
+		if err != nil {
+			errChan <- err
+			return
+		}
 
-		resChan <- result
+		data, err := hex.DecodeString(result[128 : nameLen*2])
+		if err != nil {
+			errChan <- err
+			return
+		}
+		resChan <- string(data)
 	}()
+	return <-resChan, <-errChan
+}
 
+// GetERC20Symbol is
+func (c *Ethereum) GetERC20Symbol(contract string) (string, error) {
+	resChan, errChan := make(chan string, 1), make(chan error, 1)
+	go func() {
+		defer close(resChan)
+		defer close(errChan)
+
+		reqData := CallFuncParam{
+			Data: ERC20SymbolSig,
+			To:   contract,
+		}
+
+		var resp StrResp
+		err := c.CallOne(jr2.NewReqData(nil, methods.Call, &reqData), &resp)
+
+		result := rmHexPrefix(resp.Result)
+		// offset(64) + length(64) + data(>=64) >= 192
+		if len(result) < 192 {
+			return
+		}
+		if err != nil {
+			errChan <- err
+			return
+		}
+
+		nameLen, err := strconv.ParseInt(result[64:128], 16, 16)
+		if err != nil {
+			errChan <- err
+			return
+		}
+
+		data, err := hex.DecodeString(result[128 : nameLen*2])
+		if err != nil {
+			errChan <- err
+			return
+		}
+		resChan <- string(data)
+	}()
+	return <-resChan, <-errChan
+}
+
+// GetERC20Decimals is
+func (c *Ethereum) GetERC20Decimals(contract string) (uint8, error) {
+	resChan, errChan := make(chan uint8, 1), make(chan error, 1)
+	go func() {
+		defer close(resChan)
+		defer close(errChan)
+
+		reqData := CallFuncParam{
+			Data: ERC20DecimalsSig,
+			To:   contract,
+		}
+
+		var resp StrResp
+		err := c.CallOne(jr2.NewReqData(nil, methods.Call, &reqData), &resp)
+		result := rmHexPrefix(resp.Result)
+		if result == "" {
+			return
+		}
+		if err != nil {
+			errChan <- err
+			return
+		}
+
+		decimals, err := strconv.ParseInt(result, 16, 16)
+		if err != nil {
+			errChan <- err
+			return
+		}
+		resChan <- uint8(decimals)
+	}()
+	return <-resChan, <-errChan
+}
+
+// GetERC20TotalSupply is
+func (c *Ethereum) GetERC20TotalSupply(contract string) (string, error) {
+	resChan, errChan := make(chan string, 1), make(chan error, 1)
+	go func() {
+		defer close(resChan)
+		defer close(errChan)
+
+		reqData := CallFuncParam{
+			Data: ERC20TotalSupply,
+			To:   contract,
+		}
+
+		var resp StrResp
+		c.CallOne(jr2.NewReqData(nil, methods.Call, &reqData), &resp)
+		// TODO(islishude): check error and parse result to *big.Int
+		resChan <- string(resp.Result)
+	}()
 	return <-resChan, <-errChan
 }
