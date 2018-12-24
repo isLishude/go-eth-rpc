@@ -2,6 +2,7 @@ package ethrpc
 
 import (
 	"encoding/hex"
+	"fmt"
 	"strconv"
 
 	"github.com/islishude/go-eth-rpc/methods"
@@ -51,9 +52,23 @@ func (c *Ethereum) GetERC20Balance(contract, address string) (string, error) {
 		}
 
 		var resp StrResp
-		c.CallOne(jr2.NewReqData(nil, methods.Call, &reqData), &resp)
-		// TODO(islishude): check error and parse result to *big.Int
-		resChan <- string(resp.Result)
+		if err := c.CallOne(jr2.NewReqData(nil, methods.Call, &reqData), &resp); err != nil {
+			errChan <- err
+			return
+		}
+
+		if err := resp.Error; err != nil {
+			// error check for parity
+			if code, ok := err["code"].(int); ok && code == -32015 {
+				return
+			}
+
+			errChan <- fmt.Errorf("[GetERC20Name response error] msg: %v code: %v", err["message"], err["code"])
+			return
+		}
+
+		// TODO(islishude): parse result to *big.Int
+		resChan <- resp.Result
 	}()
 
 	return <-resChan, <-errChan
@@ -72,14 +87,24 @@ func (c *Ethereum) GetERC20Name(contract string) (string, error) {
 		}
 
 		var resp StrResp
-		err := c.CallOne(jr2.NewReqData(nil, methods.Call, &reqData), &resp)
+		if err := c.CallOne(jr2.NewReqData(nil, methods.Call, &reqData), &resp); err != nil {
+			errChan <- err
+			return
+		}
+
+		if err := resp.Error; err != nil {
+			// error check for parity
+			if code, ok := err["code"].(int); ok && code == -32015 {
+				return
+			}
+
+			errChan <- fmt.Errorf("[GetERC20Name response error] msg: %v code: %v", err["message"], err["code"])
+			return
+		}
+
 		result := rmHexPrefix(resp.Result)
 		// offset(64) + length(64) + data(>=64) >= 192
 		if len(result) < 192 {
-			return
-		}
-		if err != nil {
-			errChan <- err
 			return
 		}
 
@@ -112,15 +137,24 @@ func (c *Ethereum) GetERC20Symbol(contract string) (string, error) {
 		}
 
 		var resp StrResp
-		err := c.CallOne(jr2.NewReqData(nil, methods.Call, &reqData), &resp)
+		if err := c.CallOne(jr2.NewReqData(nil, methods.Call, &reqData), &resp); err != nil {
+			errChan <- err
+			return
+		}
+
+		if err := resp.Error; err != nil {
+			// error check for parity
+			if code, ok := err["code"].(int); ok && code == -32015 {
+				return
+			}
+
+			errChan <- fmt.Errorf("[GetERC20Symbol response error] msg: %v code: %v", err["message"], err["code"])
+			return
+		}
 
 		result := rmHexPrefix(resp.Result)
 		// offset(64) + length(64) + data(>=64) >= 192
 		if len(result) < 192 {
-			return
-		}
-		if err != nil {
-			errChan <- err
 			return
 		}
 
@@ -153,13 +187,23 @@ func (c *Ethereum) GetERC20Decimals(contract string) (uint8, error) {
 		}
 
 		var resp StrResp
-		err := c.CallOne(jr2.NewReqData(nil, methods.Call, &reqData), &resp)
-		result := rmHexPrefix(resp.Result)
-		if result == "" {
+		if err := c.CallOne(jr2.NewReqData(nil, methods.Call, &reqData), &resp); err != nil {
+			errChan <- err
 			return
 		}
-		if err != nil {
-			errChan <- err
+
+		if err := resp.Error; err != nil {
+			// error check for parity
+			if code, ok := err["code"].(int); ok && code == -32015 {
+				return
+			}
+
+			errChan <- fmt.Errorf("[GetERC20Decimals response error] msg: %v code: %v", err["message"], err["code"])
+			return
+		}
+
+		result := rmHexPrefix(resp.Result)
+		if result == "" {
 			return
 		}
 
@@ -186,8 +230,19 @@ func (c *Ethereum) GetERC20TotalSupply(contract string) (string, error) {
 		}
 
 		var resp StrResp
-		c.CallOne(jr2.NewReqData(nil, methods.Call, &reqData), &resp)
-		// TODO(islishude): check error and parse result to *big.Int
+		if err := c.CallOne(jr2.NewReqData(nil, methods.Call, &reqData), &resp); err != nil {
+			errChan <- err
+			return
+		}
+		// TODO(islishude): parse result to *big.Int
+		if err := resp.Error; err != nil {
+			// error check for parity
+			if code, ok := err["code"].(int); ok && code == -32015 {
+				return
+			}
+			errChan <- fmt.Errorf("[GetERC20Name response error] msg: %v code: %v", err["message"], err["code"])
+			return
+		}
 		resChan <- string(resp.Result)
 	}()
 	return <-resChan, <-errChan
