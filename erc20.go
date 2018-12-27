@@ -2,11 +2,17 @@ package ethrpc
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strconv"
 
 	"github.com/islishude/go-eth-rpc/methods"
 	"github.com/islishude/go-jsonrpc2"
+)
+
+// ErrorList
+var (
+	ErrNotERC20 = errors.New("Not standard ERC20 Token")
 )
 
 // ERC20Sigs
@@ -67,6 +73,11 @@ func (c *Ethereum) GetERC20Balance(contract, address string) (string, error) {
 			return
 		}
 
+		if resp.Result == "0x" {
+			errChan <- ErrNotERC20
+			return
+		}
+
 		// TODO(islishude): parse result to *big.Int
 		resChan <- resp.Result
 	}()
@@ -95,6 +106,7 @@ func (c *Ethereum) GetERC20Name(contract string) (string, error) {
 		if err := resp.Error; err != nil {
 			// error check for parity
 			if code, ok := err["code"].(int); ok && code == -32015 {
+				errChan <- ErrNotERC20
 				return
 			}
 
@@ -143,8 +155,8 @@ func (c *Ethereum) GetERC20Symbol(contract string) (string, error) {
 		}
 
 		if err := resp.Error; err != nil {
-			// error check for parity
 			if code, ok := err["code"].(int); ok && code == -32015 {
+				errChan <- ErrNotERC20
 				return
 			}
 
@@ -155,18 +167,19 @@ func (c *Ethereum) GetERC20Symbol(contract string) (string, error) {
 		result := rmHexPrefix(resp.Result)
 		// offset(64) + length(64) + data(>=64) >= 192
 		if len(result) < 192 {
+			errChan <- ErrNotERC20
 			return
 		}
 
 		nameLen, err := strconv.ParseInt(result[64:128], 16, 16)
 		if err != nil {
-			errChan <- err
+			errChan <- ErrNotERC20
 			return
 		}
 
 		data, err := hex.DecodeString(result[128 : nameLen*2])
 		if err != nil {
-			errChan <- err
+			errChan <- ErrNotERC20
 			return
 		}
 		resChan <- string(data)
@@ -195,6 +208,7 @@ func (c *Ethereum) GetERC20Decimals(contract string) (uint8, error) {
 		if err := resp.Error; err != nil {
 			// error check for parity
 			if code, ok := err["code"].(int); ok && code == -32015 {
+				errChan <- ErrNotERC20
 				return
 			}
 
@@ -204,6 +218,7 @@ func (c *Ethereum) GetERC20Decimals(contract string) (uint8, error) {
 
 		result := rmHexPrefix(resp.Result)
 		if result == "" {
+			errChan <- ErrNotERC20
 			return
 		}
 
@@ -238,12 +253,18 @@ func (c *Ethereum) GetERC20TotalSupply(contract string) (string, error) {
 		if err := resp.Error; err != nil {
 			// error check for parity
 			if code, ok := err["code"].(int); ok && code == -32015 {
+				errChan <- ErrNotERC20
 				return
 			}
 			errChan <- fmt.Errorf("[GetERC20TotalSupply response error] msg: %v code: %v", err["message"], err["code"])
 			return
 		}
-		resChan <- string(resp.Result)
+
+		if resp.Result == "0x" {
+			errChan <- ErrNotERC20
+			return
+		}
+		resChan <- resp.Result
 	}()
 	return <-resChan, <-errChan
 }
