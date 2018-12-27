@@ -6,7 +6,7 @@ go:
 before_install:
   - cd ${TRAVIS_HOME}/gopath/src/github.com && mv isLishude islishude
 script:
-  - go test -v ./...
+  - go test -v github.com/islishude/go-eth-rpc
 notifications:
   email:
     on_success: "change"
