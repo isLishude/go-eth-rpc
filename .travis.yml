@@ -3,10 +3,8 @@ go:
   - "1.9"
   - "1.10"
   - "1.11"
-isntall:
-  - "go get -t -v ./..."
 script:
-  - "go test ."
+  - go test -v ./...
 notifications:
   email:
     on_success: "change"
