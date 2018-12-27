@@ -35,7 +35,7 @@ const (
 )
 
 func rmHexPrefix(input string) string {
-	if input[:2] == "0x" || input[:2] == "0X" {
+	if len(input) >= 2 && (input[:2] == "0x" || input[:2] == "0X") {
 		input = input[2:]
 	}
 	return input
